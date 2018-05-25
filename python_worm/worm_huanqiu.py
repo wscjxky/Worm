@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 import redis
 from past.builtins import apply
 
-DATA_DIR=os.path.pardir+os.sep+'Data'+os.sep
+DATA_DIR = os.path.pardir + os.sep + 'Data' + os.sep
 re_chinese_words = re.compile(u"[\u4e00-\u9fa5]+")
 BASE_URL = 'http://weapon.huanqiu.com'
 WEAPON_URL = BASE_URL + '/weaponmaps'
@@ -28,10 +28,8 @@ M_Headers = {
 
 }
 socket.setdefaulttimeout(10)
-DB = redis.Redis(host='47.94.251.202', port=6379, db=8, password='wscjxky', decode_responses=True)
+DB = redis.Redis(host='47.94.251.202', port=6379, db=8, password='', decode_responses=True)
 
-keys = DB.keys('huanqiu:sec_sort*')
-print(keys)
 
 def get_index_sort(data):
     soup = BeautifulSoup(data, 'html.parser')
@@ -63,19 +61,40 @@ def get_sort_info(data):
         name = name.replace('”', '')
         name = name.strip()
         link = tag_a.get('href')
-        DB.hset('huanqiu:sec_sort:'+second_sort, name, BASE_URL + link)
+        DB.hset('huanqiu:sec_sort:' + second_sort, name, BASE_URL + link)
         print(link, name)
-def get_sort_img(data):
+
+
+def get_sort_img(data, first_sort, second_sort):
     soup = BeautifulSoup(data, 'html.parser')
-    img = soup.find('div', class_="maxPic").find('img').get('src')
-    response = urllib.request.urlopen(img)
-    data = response.read()
-    try:
-        os.mkdir(DATA_DIR+os.sep+'huanqiu')
-    except :
-        print('dir is already made')
-    with open(DATA_DIR+"/1/1.%s" % (img[-3:]),"wb") as f:
-        f.write(data)
+    img = soup.find('div', class_="maxPic")
+    # sort_name = soup.find('div', class_="conMain").find('span',class_='name').text
+    # print(sort_name)
+    if img:
+        img = img.find('img').get('src')
+        # response = urllib.request.urlopen(img)
+        # data = response.read()
+        try:
+            first_sort = first_sort.replace('/', '').replace('“', '').replace('”', '').replace(' ', '')
+            second_sort = second_sort.replace('/', '').replace('“', '').replace('”', '').replace(' ', '')
+            # os.mkdir(DATA_DIR + os.sep + 'huanqiu/' + first_sort + "/")
+        except:
+            print('dir is already made')
+        with open('name.txt', 'a') as f:
+            f.write(first_sort +' ' +second_sort+'\n')
+        # path = DATA_DIR  + "huanqiu" + os.sep + first_sort + os.sep + second_sort + ".%s" % (img[-3:])
+        # try:
+        #     print(path)
+        #     with open(path, "wb") as f:
+        #         f.write(data)
+        # except:
+        #     print(path)
+        #     with open(path, "wb") as f:
+        #         f.write(data)
+
+    else:
+        return
+
 
 def request_url(url, ):
     sort = url[-10:]
@@ -104,13 +123,17 @@ def request_url(url, ):
         print(e.args)
         if (e.reason == 503):
             STOP_FLAG = True
+
+
 class MyThread(threading.Thread):
     def __init__(self, func, args):
         threading.Thread.__init__(self)
         self.args = args
         self.func = func
+
     def run(self):
         apply(self.func, self.args)
+
 
 if __name__ == '__main__':
     # base_url='https://www.researchgate.net/'
@@ -118,25 +141,24 @@ if __name__ == '__main__':
     # data = request_url(WEAPON_URL, BASE_URL[-10:], key_cache='index')
     # get_index_sort(data)
     Threadlist = []
-    keys=DB.keys('huanqiu:sec_sort*')
+    keys = DB.keys('huanqiu:sec_sort*')
     for first_sort in keys:
-        dic=DB.hgetall(first_sort)
-        for scond_sort, link in dic.items():
+        dic = DB.hgetall(first_sort)
+        for second_sort, link in dic.items():
             # Threadlist.append(MyThread(request_url,link))
-            data=request_url(link)
-            get_sort_img(data)
+            data = request_url(link)
+            get_sort_img(data, first_sort[len('huanqiu:sec_sort:'):], second_sort)
 
-
-    for t in Threadlist:
-        t.setDaemon(True)  # 如果你在for循环里用，不行， 因为上一个多线程还没结束又开始下一个
-        t.start()
-    for j in Threadlist:
-        j.join()
-    # get_sort_info(data)
-    # get_sort_img(data)
-    # with open('detail','wb') as f:
-    #     f.write(data)
-    # with open('detail','rb') as f:
-    #     data=f.read()
-    # getPaperLinkdata(data)
-    # getPaperAuthor(data)
+    # for t in Threadlist:
+    #     t.setDaemon(True)  # 如果你在for循环里用，不行， 因为上一个多线程还没结束又开始下一个
+    #     t.start()
+    # for j in Threadlist:
+    #     j.join()
+        # get_sort_info(data)
+        # get_sort_img(data)
+        # with open('detail','wb') as f:
+        #     f.write(data)
+        # with open('detail','rb') as f:
+        #     data=f.read()
+        # getPaperLinkdata(data)
+        # getPaperAuthor(data)
